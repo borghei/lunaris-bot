@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="Lunaris-header.png" alt="Lunaris" width="1280">
+  <img src="Lunaris-header.png" alt="Lunaris" width="100%">
 </p>
 
 <h1 align="center">Lunaris</h1>
@@ -9,109 +9,104 @@
 </p>
 
 <p align="center">
-  <a href="#features">Features</a> &bull;
-  <a href="#quick-start">Quick Start</a> &bull;
-  <a href="GUIDE.md">Full Guide</a> &bull;
-  <a href="#commands">Commands</a> &bull;
-  <a href="#tech-stack">Tech Stack</a> &bull;
-  <a href="#license">License</a>
+  <img src="https://img.shields.io/badge/version-2.3.0-pink?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/python-3.12+-blue?style=flat-square&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/AI-Claude_Sonnet-blueviolet?style=flat-square&logo=anthropic&logoColor=white" alt="Claude AI">
+  <img src="https://img.shields.io/badge/platform-Telegram-26A5E4?style=flat-square&logo=telegram&logoColor=white" alt="Telegram">
+  <img src="https://img.shields.io/badge/tests-174_passing-brightgreen?style=flat-square" alt="Tests">
 </p>
 
 ---
 
 ## Features
 
-**Cycle Tracking**
-- 5-phase detection: menstruation, follicular, ovulation, luteal, PMS
-- Predicts next period, PMS start, and ovulation dates
-- Learns your actual cycle length over time (exponential smoothing)
-- Mood and symptom logging tied to cycle phases
+### Cycle Tracking & Predictions
 
-**AI Companion**
-- Free-form chat with a cycle-aware women's health advisor (Claude Sonnet)
-- On-demand tips tailored to your current phase
-- Daily proactive reminders during PMS, period, and ovulation (Claude Haiku)
-- Persistent conversation history per user
+- **5-phase cycle model** — menstruation, follicular, ovulation, luteal, PMS
+- **Proportional phase boundaries** — scales phases based on actual cycle length using the medical model (fixed 14-day luteal phase), so a 35-day cycle puts ovulation on day 21, not day 14
+- **Configurable period duration** (2-7 days) — phase boundaries adjust to your actual period length
+- **Adaptive cycle learning** — computes median cycle length from your period history (falls back to 70/30 weighted average with fewer than 2 logged periods)
+- **Period history log** — tracks every logged period for smarter predictions over time
+- **Date predictions** — next period, PMS, and ovulation with countdown
+- **Age-aware** — optional birth year for age-appropriate AI advice
+- **Configurable** — cycle length (20-45 days), period duration, last period date, timezone
 
-**Multi-User**
-- Admin-managed whitelist — invite others via Telegram user ID
-- Each user has independent cycle config, logs, and chat history
-- 3-tier authorization: whitelisted, authorized (setup complete), admin-only
+### AI Companion (Claude)
 
-**Production Quality**
-- SQLite with WAL mode, foreign keys, and indexed queries
-- Per-user AI rate limiting (5 calls / 60 seconds)
-- Input validation and markdown escaping
-- 127 tests covering all modules
-- PM2-ready with rotating logs
+- **Personalized tips** — context-aware advice based on current phase, recent mood logs, and age
+- **Free-form chat** — conversational AI for women's health questions (hormones, nutrition, exercise, sleep, skincare, fertility, symptoms)
+- **Persistent memory** — per-user conversation history across sessions
+- **Warm tone** — supportive and conversational, never clinical
 
----
+### Mood & Symptom Logging
 
-## Quick Start
+- Log daily notes with automatic phase tagging
+- View history with dates and phase labels
+- Logs feed into AI tips for better personalization
 
-```bash
-# Clone
-git clone https://github.com/borghei/lunaris-bot.git
-cd lunaris-bot
+### Smart Daily Reminders
 
-# Setup
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+- Scheduled at a configurable hour (default 9 AM)
+- Only triggers during key phases: menstruation, ovulation, PMS, and late luteal (proportional PMS warning)
+- Uses Claude Haiku for cost-efficient reminder generation
+- Incorporates recent mood logs and age for context
 
-# Configure
-cp .env.example .env
-# Edit .env with your tokens (see GUIDE.md for details)
+### Multi-User & Access Control
 
-# Run
-python run.py
-```
-
-You need three things in your `.env`:
-1. **Telegram bot token** from [@BotFather](https://t.me/BotFather)
-2. **Anthropic API key** from [console.anthropic.com](https://console.anthropic.com)
-3. **Your Telegram user ID** (use [@userinfobot](https://t.me/userinfobot) to find it)
-
-See the **[Full Setup & Configuration Guide](GUIDE.md)** for detailed instructions.
+- Admin whitelist system with `/adduser` and `/removeuser`
+- Per-user cycle config, mood logs, period history, and chat history
+- 3-tier auth: whitelisted, configured (setup done), admin
+- Admin commands hidden from non-admin users in the Telegram menu
 
 ---
 
 ## Commands
 
+### User Commands
+
 | Command | Description |
 |---------|-------------|
-| `/start` | Welcome message and main menu |
-| `/setup <length> <date>` | Configure your cycle (e.g. `/setup 28 2026-02-15`) |
-| `/status` | Current cycle day and phase |
-| `/tip` | AI-generated tip for your current phase |
-| `/period [date]` | Log period start (learns cycle length) |
-| `/log <note>` | Log a mood or symptom |
+| `/start` | Welcome message & main menu |
+| `/status` | Current cycle day & phase |
+| `/tip` | AI-generated tip for your phase |
+| `/period [date]` | Log period start (today or specific date) |
+| `/log <note>` | Log mood or symptom |
 | `/history` | View recent logs |
 | `/next` | Predicted upcoming dates |
-| `/phase` | Detailed info about your current phase |
-| `/adjust <date>` | Correct your last period start date |
-| `/settings [length]` | View or update cycle length |
-| `/clearchat` | Clear AI conversation history |
-| `/about` | Bot version and info |
-| `/adduser <id>` | Whitelist a user (admin only) |
-| `/removeuser <id>` | Remove a user (admin only) |
-| `/users` | List all whitelisted users (admin only) |
+| `/phase` | Detailed phase info & wellness tips |
+| `/adjust <date>` | Update last period start date |
+| `/settings [days]` | View or update cycle length |
+| `/settings period <days>` | Update period duration (2-7) |
+| `/settings age <year>` | Set birth year for age-aware tips |
+| `/setup <length> <date> [period_duration] [birth_year]` | Initial cycle setup |
+| `/clearchat` | Clear AI chat history |
+| `/about` | Bot info & version |
 
-Admin commands are hidden from non-admin users in the Telegram command menu.
+### Admin Commands
 
-Any non-command text message starts a free-form AI chat conversation.
+| Command | Description |
+|---------|-------------|
+| `/adduser <id>` | Whitelist a Telegram user |
+| `/removeuser <id>` | Remove a user |
+| `/users` | List all whitelisted users |
+
+### Interactive Menu
+
+The `/start` command presents an inline keyboard with quick access to Status, Tip, Period, Next Dates, Phase Details, History, Chat, and Settings. Free-form text messages go directly to the AI chat — no command needed.
 
 ---
 
-## Cycle Phases
+## Tech Stack
 
-| Phase | Days | What Happens |
-|-------|------|-------------|
-| Menstruation | 1–5 | Period — rest and recovery |
-| Follicular | 6–13 | Energy rising, creativity peaks |
-| Ovulation | 14 | Peak energy, confidence, fertility |
-| Luteal | 15–21 | Slowing down, progesterone rising |
-| PMS | 22–28 | Hormone shifts, mood changes |
+| Component | Technology |
+|-----------|------------|
+| Bot Framework | [python-telegram-bot](https://python-telegram-bot.org/) 21.10 |
+| AI | [Anthropic Claude](https://www.anthropic.com/) (Sonnet for chat/tips, Haiku for reminders) |
+| Database | SQLite 3 with WAL mode |
+| Scheduler | APScheduler 3.10 |
+| Process Manager | PM2 |
+| CI/CD | GitHub Actions |
+| Language | Python 3.12+ |
 
 ---
 
@@ -119,53 +114,112 @@ Any non-command text message starts a free-form AI chat conversation.
 
 ```
 lunaris-bot/
+├── run.py                      # Entry point
 ├── config/
-│   ├── __init__.py
-│   └── settings.py          # Environment-based configuration
+│   └── settings.py             # Environment config & constants
 ├── src/
-│   ├── __init__.py
-│   ├── ai.py                # Claude AI integration
-│   ├── bot.py                # Application setup and handler registration
-│   ├── cycle.py              # Cycle calculation engine
-│   ├── db.py                 # SQLite database layer
-│   ├── handlers.py           # Command and callback handlers
-│   └── scheduler.py          # Daily reminder scheduler
-├── tests/
-│   ├── conftest.py           # Shared test fixtures
-│   ├── test_ai.py            # AI integration tests (14)
-│   ├── test_cycle.py         # Cycle engine tests (34)
-│   ├── test_db.py            # Database tests (32)
-│   ├── test_handlers_commands.py  # Command handler tests (20)
-│   ├── test_handlers_helpers.py   # Helper/decorator tests (19)
-│   └── test_scheduler.py     # Scheduler tests (6)
-├── .env.example
-├── ecosystem.config.js       # PM2 production config
-├── pyproject.toml            # Pytest configuration
-├── requirements.txt
-└── run.py                    # Entry point
+│   ├── bot.py                  # App bootstrap & command registration
+│   ├── handlers.py             # Command, button & chat handlers
+│   ├── cycle.py                # Proportional phase engine & date predictions
+│   ├── ai.py                   # Claude AI integration (age-aware)
+│   ├── db.py                   # SQLite database layer (period history, migrations)
+│   └── scheduler.py            # Daily reminder scheduling
+├── tests/                      # 174 pytest tests
+│   ├── conftest.py             # Shared fixtures
+│   ├── test_cycle.py           # Cycle engine & proportional boundaries (48 tests)
+│   ├── test_db.py              # Database layer & period logs (46 tests)
+│   ├── test_ai.py              # AI integration (14 tests)
+│   ├── test_handlers_helpers.py    # Auth & utilities (19 tests)
+│   ├── test_handlers_commands.py   # Command handlers (31 tests)
+│   └── test_scheduler.py       # Reminder logic (6 tests)
+├── data/                       # SQLite database (runtime)
+├── logs/                       # Log files (runtime)
+└── Lunaris-header.png
 ```
 
 ---
 
-## Tech Stack
+## Setup
 
-- **Python 3.11+**
-- **[python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)** — Telegram Bot API
-- **[Anthropic Claude](https://www.anthropic.com)** — AI chat, tips, and reminders
-- **[APScheduler](https://github.com/agronholm/apscheduler)** — Daily reminder scheduling
-- **SQLite** — Persistent storage (WAL mode)
-- **[pytest](https://pytest.org)** + **pytest-asyncio** — Test suite
+### Prerequisites
+
+- Python 3.12+
+- A Telegram bot token from [@BotFather](https://t.me/BotFather)
+- An [Anthropic API key](https://console.anthropic.com/)
+
+### Installation
+
+```bash
+git clone https://github.com/borghei/lunaris-bot.git
+cd lunaris-bot
+
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+cp .env.example .env
+```
+
+### Configuration
+
+Edit `.env` with your values:
+
+```env
+TELEGRAM_BOT_TOKEN=your_bot_token
+ANTHROPIC_API_KEY=your_api_key
+ADMIN_CHAT_ID=your_telegram_user_id
+
+CYCLE_LENGTH=28
+LAST_PERIOD_START=2026-01-28
+REMINDER_HOUR=9
+TIMEZONE=Asia/Tehran
+```
+
+### Run
+
+```bash
+python run.py
+```
+
+---
+
+## Deployment
+
+### PM2 (Production)
+
+```bash
+pm2 start ecosystem.config.js
+pm2 logs lunaris
+```
+
+PM2 is configured with auto-restart, 256 MB memory limit, and log rotation.
+
+### CI/CD
+
+Pushes to `main` trigger automatic deployment via GitHub Actions:
+
+1. Pull latest code on the server
+2. Back up the database
+3. Install dependencies
+4. Syntax check
+5. Generate `.env` from GitHub Secrets
+6. Restart via PM2
+7. Health check
+8. Clean up old backups (7-day retention)
+
+**Required GitHub Secrets:** `TELEGRAM_BOT_TOKEN`, `ANTHROPIC_API_KEY`, `ADMIN_CHAT_ID`, `DEPLOY_HOST`, `SSH_PRIVATE_KEY`
 
 ---
 
 ## Testing
 
 ```bash
-pip install pytest pytest-asyncio
-pytest -v
+pytest                  # Run all 174 tests
+pytest -v               # Verbose output
+pytest tests/test_cycle.py  # Run a specific module
 ```
 
-127 tests, all passing. No external services needed — database tests use real SQLite via temp files, AI tests use mocked clients.
+Tests use real SQLite databases (via `tmp_path`) and mocked Anthropic calls. Async handlers are tested with `asyncio_mode = "auto"`.
 
 ---
 

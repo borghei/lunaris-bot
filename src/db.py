@@ -1,4 +1,5 @@
 import sqlite3
+import statistics
 from datetime import date, datetime
 from pathlib import Path
 
@@ -12,6 +13,7 @@ class Database:
         self._conn.execute("PRAGMA foreign_keys = ON")
         self._conn.execute("PRAGMA busy_timeout=5000")
         self._init_db()
+        self._migrate_schema()
 
     def _get_conn(self) -> sqlite3.Connection:
         return self._conn
@@ -76,6 +78,16 @@ class Database:
                 )
             """)
 
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS period_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    chat_id INTEGER NOT NULL,
+                    period_date TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                    FOREIGN KEY (chat_id) REFERENCES users(chat_id)
+                )
+            """)
+
             # Indexes for per-user queries
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_user_mood_logs_chat
@@ -85,8 +97,24 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_chat_history_chat
                 ON chat_history(chat_id, id DESC)
             """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_period_logs_chat
+                ON period_logs(chat_id, period_date DESC)
+            """)
 
-    # ── Admin bootstrap & legacy migration ──────────────────────────
+    def _migrate_schema(self):
+        """Add columns introduced after initial schema creation."""
+        with self._get_conn() as conn:
+            for col, spec in [
+                ("period_duration", "INTEGER NOT NULL DEFAULT 5"),
+                ("year_of_birth", "INTEGER"),
+            ]:
+                try:
+                    conn.execute(f"ALTER TABLE user_cycle_config ADD COLUMN {col} {spec}")
+                except sqlite3.OperationalError:
+                    pass  # column already exists
+
+    # -- Admin bootstrap & legacy migration --
 
     def bootstrap_admin(self, admin_id: int, cycle_length: int, last_period_start: str):
         """Ensure admin exists in users table and migrate legacy data if needed."""
@@ -137,7 +165,7 @@ class Database:
                         (admin_id, log["date"], log["note"], log["phase"], log["created_at"]),
                     )
 
-    # ── User management ─────────────────────────────────────────────
+    # -- User management --
 
     def add_user(self, chat_id: int, added_by: int):
         with self._get_conn() as conn:
@@ -178,7 +206,7 @@ class Database:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    # ── Per-user cycle config ───────────────────────────────────────
+    # -- Per-user cycle config --
 
     def get_user_config(self, chat_id: int) -> dict | None:
         with self._get_conn() as conn:
@@ -190,15 +218,24 @@ class Database:
     def user_has_config(self, chat_id: int) -> bool:
         return self.get_user_config(chat_id) is not None
 
-    def upsert_user_config(self, chat_id: int, cycle_length: int, last_period_date: str):
+    def upsert_user_config(
+        self,
+        chat_id: int,
+        cycle_length: int,
+        last_period_date: str,
+        period_duration: int = 5,
+        year_of_birth: int | None = None,
+    ):
         with self._get_conn() as conn:
             conn.execute("""
-                INSERT INTO user_cycle_config (chat_id, cycle_length, last_period_date)
-                VALUES (?, ?, ?)
+                INSERT INTO user_cycle_config (chat_id, cycle_length, last_period_date, period_duration, year_of_birth)
+                VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(chat_id) DO UPDATE SET
                     cycle_length = excluded.cycle_length,
-                    last_period_date = excluded.last_period_date
-            """, (chat_id, cycle_length, last_period_date))
+                    last_period_date = excluded.last_period_date,
+                    period_duration = excluded.period_duration,
+                    year_of_birth = excluded.year_of_birth
+            """, (chat_id, cycle_length, last_period_date, period_duration, year_of_birth))
 
     def update_user_cycle_length(self, chat_id: int, cycle_length: int):
         with self._get_conn() as conn:
@@ -214,7 +251,50 @@ class Database:
                 (last_period_date, chat_id),
             )
 
-    # ── Per-user mood logs ──────────────────────────────────────────
+    def update_user_period_duration(self, chat_id: int, period_duration: int):
+        with self._get_conn() as conn:
+            conn.execute(
+                "UPDATE user_cycle_config SET period_duration = ? WHERE chat_id = ?",
+                (period_duration, chat_id),
+            )
+
+    def update_user_year_of_birth(self, chat_id: int, year_of_birth: int):
+        with self._get_conn() as conn:
+            conn.execute(
+                "UPDATE user_cycle_config SET year_of_birth = ? WHERE chat_id = ?",
+                (year_of_birth, chat_id),
+            )
+
+    # -- Period history --
+
+    def add_period_log(self, chat_id: int, period_date: str):
+        with self._get_conn() as conn:
+            conn.execute(
+                "INSERT INTO period_logs (chat_id, period_date) VALUES (?, ?)",
+                (chat_id, period_date),
+            )
+
+    def get_period_history(self, chat_id: int, limit: int = 6) -> list[str]:
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                "SELECT period_date FROM period_logs WHERE chat_id = ? ORDER BY period_date DESC LIMIT ?",
+                (chat_id, limit),
+            ).fetchall()
+            return [r["period_date"] for r in rows]
+
+    def get_computed_cycle_length(self, chat_id: int) -> int | None:
+        """Compute median cycle length from period history. Returns None if < 2 entries."""
+        dates = self.get_period_history(chat_id, limit=7)
+        if len(dates) < 2:
+            return None
+        sorted_dates = sorted(date.fromisoformat(d) for d in dates)
+        gaps = [(sorted_dates[i + 1] - sorted_dates[i]).days for i in range(len(sorted_dates) - 1)]
+        valid_gaps = [g for g in gaps if 18 <= g <= 45]
+        if not valid_gaps:
+            return None
+        return round(statistics.median(valid_gaps))
+
+    # -- Per-user mood logs --
 
     def add_user_log(self, chat_id: int, note: str, phase: str, log_date: date | None = None):
         log_date = log_date or date.today()
@@ -240,7 +320,7 @@ class Database:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    # ── Chat history ────────────────────────────────────────────────
+    # -- Chat history --
 
     def add_chat_message(self, chat_id: int, role: str, content: str):
         with self._get_conn() as conn:

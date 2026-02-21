@@ -1,0 +1,77 @@
+name: Deploy to Server
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ADMIN_CHAT_ID: ${{ secrets.ADMIN_CHAT_ID }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: TELEGRAM_BOT_TOKEN,ANTHROPIC_API_KEY,ADMIN_CHAT_ID
+          script: |
+            set -e
+            DEPLOY_DIR="/root/telegram_bots/Lunaris"
+
+            # Initial clone if not present
+            if [ ! -d "$DEPLOY_DIR/.git" ]; then
+              mkdir -p /root/telegram_bots
+              git clone git@github.com:borghei/Lunaris.git "$DEPLOY_DIR"
+            fi
+
+            cd "$DEPLOY_DIR"
+
+            # Backup DB before deploy
+            if [ -f "data/lunaris.db" ]; then
+              mkdir -p /root/backups
+              sqlite3 data/lunaris.db ".backup '/root/backups/lunaris-pre-deploy-$(date +%s).db'"
+            fi
+
+            git pull origin main
+
+            # Create/update venv
+            if [ ! -d "venv" ]; then
+              python3 -m venv venv
+            fi
+            source venv/bin/activate
+            pip install -r requirements.txt
+
+            # Syntax check before restart
+            python -m py_compile run.py
+
+            # Write .env from secrets
+            cat > .env <<ENVEOF
+            TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+            ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+            ADMIN_CHAT_ID=${ADMIN_CHAT_ID}
+            REMINDER_HOUR=9
+            TIMEZONE=Asia/Tehran
+            CHAT_MODEL=claude-sonnet-4-6
+            MAX_CHAT_HISTORY=20
+            ENVEOF
+            sed -i 's/^[[:space:]]*//' .env
+            chmod 600 .env
+
+            # Restart with PM2
+            pm2 delete lunaris 2>/dev/null || true
+            pm2 start ecosystem.config.js
+            pm2 save
+
+            # Health check
+            sleep 5
+            pm2 show lunaris | grep -q "online" || {
+              echo "DEPLOY FAILED: lunaris is not online"
+              exit 1
+            }
+
+            # Cleanup old backups (keep 7 days)
+            find /root/backups/ -name "lunaris-*.db" -mtime +7 -delete 2>/dev/null || true

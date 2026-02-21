@@ -15,7 +15,7 @@ from src.handlers import (
 )
 
 
-# ── _escape_markdown ─────────────────────────────────────────────
+# -- _escape_markdown --
 
 class TestEscapeMarkdown:
     def test_asterisks(self):
@@ -37,7 +37,7 @@ class TestEscapeMarkdown:
         assert _escape_markdown("*_`[") == "\\*\\_\\`\\["
 
 
-# ── _check_ai_rate_limit ────────────────────────────────────────
+# -- _check_ai_rate_limit --
 
 class TestCheckAiRateLimit:
     def setup_method(self):
@@ -68,16 +68,17 @@ class TestCheckAiRateLimit:
         assert _check_ai_rate_limit(100) is True
 
 
-# ── get_cycle_info ───────────────────────────────────────────────
+# -- get_cycle_info --
 
 class TestGetCycleInfo:
     def test_returns_correct_tuple(self, db_with_user):
-        last_period, cycle_length = get_cycle_info(db_with_user, 1000)
+        last_period, cycle_length, period_duration = get_cycle_info(db_with_user, 1000)
         assert last_period == date(2026, 2, 1)
         assert cycle_length == 28
+        assert period_duration == 5
 
 
-# ── @whitelisted ─────────────────────────────────────────────────
+# -- @whitelisted --
 
 class TestWhitelistedDecorator:
     async def test_allows_authorized_user(self, make_update, mock_context):
@@ -102,7 +103,7 @@ class TestWhitelistedDecorator:
         update.message.reply_text.assert_called_once()
 
 
-# ── @authorized ──────────────────────────────────────────────────
+# -- @authorized --
 
 class TestAuthorizedDecorator:
     async def test_blocks_without_config(self, make_update, mock_context):
@@ -129,7 +130,7 @@ class TestAuthorizedDecorator:
         assert result == "ok"
 
 
-# ── @authorized_callback ────────────────────────────────────────
+# -- @authorized_callback --
 
 class TestAuthorizedCallbackDecorator:
     async def test_blocks_unauthorized(self, make_update, mock_context):
@@ -144,7 +145,7 @@ class TestAuthorizedCallbackDecorator:
         update.callback_query.answer.assert_called()
 
 
-# ── @admin_only ──────────────────────────────────────────────────
+# -- @admin_only --
 
 class TestAdminOnlyDecorator:
     async def test_allows_admin(self, make_update, mock_context):

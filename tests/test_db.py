@@ -3,7 +3,7 @@ from datetime import date
 from src.db import Database
 
 
-# ── Schema ───────────────────────────────────────────────────────
+# -- Schema --
 
 class TestSchema:
     def test_all_tables_exist(self, db):
@@ -15,6 +15,7 @@ class TestSchema:
         expected = {
             "cycle_config", "mood_logs",
             "users", "user_cycle_config", "user_mood_logs", "chat_history",
+            "period_logs",
         }
         assert expected.issubset(table_names)
 
@@ -26,8 +27,15 @@ class TestSchema:
         result = db._get_conn().execute("PRAGMA foreign_keys").fetchone()
         assert result[0] == 1
 
+    def test_user_cycle_config_has_new_columns(self, db):
+        conn = db._get_conn()
+        cols = conn.execute("PRAGMA table_info(user_cycle_config)").fetchall()
+        col_names = {c["name"] for c in cols}
+        assert "period_duration" in col_names
+        assert "year_of_birth" in col_names
 
-# ── User management ──────────────────────────────────────────────
+
+# -- User management --
 
 class TestUserManagement:
     def test_add_user(self, db):
@@ -77,7 +85,7 @@ class TestUserManagement:
         assert len(users) == 2
 
 
-# ── Cycle config ─────────────────────────────────────────────────
+# -- Cycle config --
 
 class TestCycleConfig:
     def test_has_config_true(self, db):
@@ -119,8 +127,106 @@ class TestCycleConfig:
     def test_get_user_config_none_for_unconfigured(self, db):
         assert db.get_user_config(9999) is None
 
+    def test_upsert_with_period_duration(self, db):
+        db.add_user(100, added_by=1)
+        db.upsert_user_config(100, 28, "2026-02-01", period_duration=4)
+        config = db.get_user_config(100)
+        assert config["period_duration"] == 4
 
-# ── Mood logs ────────────────────────────────────────────────────
+    def test_upsert_with_year_of_birth(self, db):
+        db.add_user(100, added_by=1)
+        db.upsert_user_config(100, 28, "2026-02-01", year_of_birth=1995)
+        config = db.get_user_config(100)
+        assert config["year_of_birth"] == 1995
+
+    def test_get_user_config_returns_new_fields(self, db):
+        db.add_user(100, added_by=1)
+        db.upsert_user_config(100, 28, "2026-02-01", period_duration=6, year_of_birth=1990)
+        config = db.get_user_config(100)
+        assert config["period_duration"] == 6
+        assert config["year_of_birth"] == 1990
+
+    def test_update_period_duration(self, db):
+        db.add_user(100, added_by=1)
+        db.upsert_user_config(100, 28, "2026-02-01")
+        db.update_user_period_duration(100, 3)
+        assert db.get_user_config(100)["period_duration"] == 3
+
+    def test_update_year_of_birth(self, db):
+        db.add_user(100, added_by=1)
+        db.upsert_user_config(100, 28, "2026-02-01")
+        db.update_user_year_of_birth(100, 1998)
+        assert db.get_user_config(100)["year_of_birth"] == 1998
+
+    def test_default_period_duration(self, db):
+        db.add_user(100, added_by=1)
+        db.upsert_user_config(100, 28, "2026-02-01")
+        config = db.get_user_config(100)
+        assert config["period_duration"] == 5
+
+    def test_default_year_of_birth_is_none(self, db):
+        db.add_user(100, added_by=1)
+        db.upsert_user_config(100, 28, "2026-02-01")
+        config = db.get_user_config(100)
+        assert config["year_of_birth"] is None
+
+
+# -- Period logs --
+
+class TestPeriodLogs:
+    def test_add_and_get_history(self, db):
+        db.add_user(100, added_by=1)
+        db.add_period_log(100, "2026-01-01")
+        db.add_period_log(100, "2026-01-29")
+        history = db.get_period_history(100)
+        assert len(history) == 2
+        # Most recent first
+        assert history[0] == "2026-01-29"
+        assert history[1] == "2026-01-01"
+
+    def test_history_limit(self, db):
+        db.add_user(100, added_by=1)
+        for i in range(10):
+            db.add_period_log(100, f"2026-{i+1:02d}-01")
+        history = db.get_period_history(100, limit=3)
+        assert len(history) == 3
+
+    def test_computed_cycle_length_basic(self, db):
+        db.add_user(100, added_by=1)
+        db.add_period_log(100, "2026-01-01")
+        db.add_period_log(100, "2026-01-29")
+        db.add_period_log(100, "2026-02-26")
+        result = db.get_computed_cycle_length(100)
+        assert result == 28  # median of [28, 28]
+
+    def test_computed_cycle_length_none_with_single_entry(self, db):
+        db.add_user(100, added_by=1)
+        db.add_period_log(100, "2026-01-01")
+        assert db.get_computed_cycle_length(100) is None
+
+    def test_computed_cycle_length_none_with_no_entries(self, db):
+        db.add_user(100, added_by=1)
+        assert db.get_computed_cycle_length(100) is None
+
+    def test_computed_cycle_length_filters_outliers(self, db):
+        db.add_user(100, added_by=1)
+        db.add_period_log(100, "2026-01-01")
+        db.add_period_log(100, "2026-01-29")  # 28-day gap
+        db.add_period_log(100, "2026-02-26")  # 28-day gap
+        db.add_period_log(100, "2026-06-01")  # 95-day gap (outlier)
+        result = db.get_computed_cycle_length(100)
+        assert result == 28  # outlier filtered out
+
+    def test_per_user_isolation(self, db):
+        db.add_user(100, added_by=1)
+        db.add_user(200, added_by=1)
+        db.add_period_log(100, "2026-01-01")
+        db.add_period_log(200, "2026-02-01")
+        assert len(db.get_period_history(100)) == 1
+        assert len(db.get_period_history(200)) == 1
+
+
+# -- Mood logs --
 
 class TestMoodLogs:
     def test_add_and_get_recent(self, db):
@@ -158,7 +264,7 @@ class TestMoodLogs:
         assert logs_200[0]["note"] == "user 200 note"
 
 
-# ── Chat history ─────────────────────────────────────────────────
+# -- Chat history --
 
 class TestChatHistory:
     def test_add_and_get(self, db):
@@ -200,7 +306,7 @@ class TestChatHistory:
         assert len(db.get_chat_history(200)) == 1
 
 
-# ── Bootstrap ────────────────────────────────────────────────────
+# -- Bootstrap --
 
 class TestBootstrap:
     def test_creates_user_and_config(self, db):

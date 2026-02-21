@@ -54,11 +54,12 @@ def _extract_text(response) -> str:
     return "I'm having a moment, darling — try again in a sec!"
 
 
-async def generate_tip(phase: str, cycle_day: int, recent_logs: list[dict] | None = None, model: str = "claude-sonnet-4-6") -> str:
+async def generate_tip(phase: str, cycle_day: int, recent_logs: list[dict] | None = None, model: str = "claude-sonnet-4-6", age: int | None = None) -> str:
     """Generate a caring tip based on cycle phase."""
     logs_context = _format_logs_context(recent_logs)
+    age_context = f" She is approximately {age} years old." if age else ""
 
-    user_msg = f"""It's day {cycle_day} of the menstrual cycle and the current phase is "{phase}".{logs_context}
+    user_msg = f"""It's day {cycle_day} of the menstrual cycle and the current phase is "{phase}".{age_context}{logs_context}
 
 Give a short, encouraging tip to help her feel better."""
 
@@ -71,9 +72,10 @@ Give a short, encouraging tip to help her feel better."""
     return _extract_text(response)
 
 
-async def generate_reminder(phase: str, cycle_day: int, recent_logs: list[dict] | None = None) -> str:
+async def generate_reminder(phase: str, cycle_day: int, recent_logs: list[dict] | None = None, age: int | None = None) -> str:
     """Generate a proactive reminder message (uses Haiku for cost efficiency)."""
     logs_context = _format_logs_context(recent_logs)
+    age_context = f" She is approximately {age} years old." if age else ""
 
     phase_prompts = {
         "pms": "She's in the PMS phase. Write a sweet, kind morning message to cheer her up. Call her darling. Witty but respectful.",
@@ -83,7 +85,7 @@ async def generate_reminder(phase: str, cycle_day: int, recent_logs: list[dict] 
 
     prompt = phase_prompts.get(phase, "Write an encouraging and sweet daily message. Call her darling.")
 
-    user_msg = f"""Day {cycle_day} of cycle — phase: {phase}{logs_context}
+    user_msg = f"""Day {cycle_day} of cycle — phase: {phase}{age_context}{logs_context}
 
 {prompt}"""
 
@@ -102,11 +104,14 @@ async def generate_chat_response(
     cycle_day: int | None = None,
     phase: str | None = None,
     recent_logs: list[dict] | None = None,
+    age: int | None = None,
 ) -> str:
     """Generate a free-form AI chat response with cycle-aware context."""
     cycle_context = ""
     if cycle_day and phase:
         cycle_context = f"Her current cycle info: Day {cycle_day}, phase: {phase}."
+        if age:
+            cycle_context += f" She is approximately {age} years old."
         if recent_logs:
             log_texts = [f"- {log['note']}" for log in recent_logs[:3]]
             cycle_context += "\nRecent notes:\n" + "\n".join(log_texts)

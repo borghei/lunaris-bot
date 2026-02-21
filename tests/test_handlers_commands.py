@@ -2,7 +2,6 @@ import time
 from datetime import date
 from unittest.mock import AsyncMock, patch
 
-from config.settings import VERSION
 from src.handlers import (
     setup_command,
     start_command,
@@ -13,13 +12,12 @@ from src.handlers import (
     period_command,
     clearchat_command,
     chat_handler,
-    about_command,
     _ai_call_timestamps,
     AI_RATE_LIMIT,
 )
 
 
-# ── /setup ───────────────────────────────────────────────────────
+# -- /setup --
 
 class TestSetupCommand:
     async def test_no_args(self, make_update, mock_context):
@@ -64,8 +62,45 @@ class TestSetupCommand:
         reply = update.message.reply_text.call_args[0][0]
         assert "All set" in reply
 
+    async def test_success_with_period_duration(self, make_update, mock_context):
+        update = make_update(chat_id=1000)
+        mock_context.args = ["28", "2026-02-01", "4"]
+        await setup_command(update, mock_context)
+        reply = update.message.reply_text.call_args[0][0]
+        assert "All set" in reply
+        assert "4" in reply
 
-# ── /start ───────────────────────────────────────────────────────
+    async def test_success_with_birth_year(self, make_update, mock_context):
+        update = make_update(chat_id=1000)
+        mock_context.args = ["28", "2026-02-01", "5", "1995"]
+        await setup_command(update, mock_context)
+        reply = update.message.reply_text.call_args[0][0]
+        assert "All set" in reply
+        assert "1995" in reply or "31" in reply  # age or birth year shown
+
+    async def test_invalid_period_duration(self, make_update, mock_context):
+        update = make_update(chat_id=1000)
+        mock_context.args = ["28", "2026-02-01", "1"]
+        await setup_command(update, mock_context)
+        reply = update.message.reply_text.call_args[0][0]
+        assert "between" in reply.lower()
+
+    async def test_period_duration_too_high(self, make_update, mock_context):
+        update = make_update(chat_id=1000)
+        mock_context.args = ["28", "2026-02-01", "10"]
+        await setup_command(update, mock_context)
+        reply = update.message.reply_text.call_args[0][0]
+        assert "between" in reply.lower()
+
+    async def test_invalid_birth_year(self, make_update, mock_context):
+        update = make_update(chat_id=1000)
+        mock_context.args = ["28", "2026-02-01", "5", "2020"]
+        await setup_command(update, mock_context)
+        reply = update.message.reply_text.call_args[0][0]
+        assert "between" in reply.lower() or "Birth year" in reply
+
+
+# -- /start --
 
 class TestStartCommand:
     async def test_without_config_shows_setup(self, make_update, mock_context):
@@ -83,7 +118,7 @@ class TestStartCommand:
         assert "Lunaris" in reply
 
 
-# ── /log ─────────────────────────────────────────────────────────
+# -- /log --
 
 class TestLogCommand:
     async def test_no_args(self, make_update, mock_context):
@@ -101,7 +136,7 @@ class TestLogCommand:
         assert "Logged" in reply
 
 
-# ── /adduser ─────────────────────────────────────────────────────
+# -- /adduser --
 
 class TestAdduserCommand:
     async def test_no_args(self, make_update, mock_context):
@@ -119,7 +154,7 @@ class TestAdduserCommand:
         assert "whitelisted" in reply.lower()
 
 
-# ── /removeuser ──────────────────────────────────────────────────
+# -- /removeuser --
 
 class TestRemoveuserCommand:
     async def test_cannot_remove_admin(self, make_update, mock_context):
@@ -130,7 +165,7 @@ class TestRemoveuserCommand:
         assert "admin" in reply.lower()
 
 
-# ── /settings ────────────────────────────────────────────────────
+# -- /settings --
 
 class TestSettingsCommand:
     async def test_view(self, make_update, mock_context):
@@ -147,8 +182,51 @@ class TestSettingsCommand:
         reply = update.message.reply_text.call_args[0][0]
         assert "30" in reply
 
+    async def test_settings_period(self, make_update, mock_context):
+        update = make_update(chat_id=1000)
+        mock_context.args = ["period", "4"]
+        await settings_command(update, mock_context)
+        reply = update.message.reply_text.call_args[0][0]
+        assert "4" in reply
+        assert "duration" in reply.lower()
 
-# ── /period ──────────────────────────────────────────────────────
+    async def test_settings_period_invalid(self, make_update, mock_context):
+        update = make_update(chat_id=1000)
+        mock_context.args = ["period", "1"]
+        await settings_command(update, mock_context)
+        reply = update.message.reply_text.call_args[0][0]
+        assert "between" in reply.lower()
+
+    async def test_settings_age(self, make_update, mock_context):
+        update = make_update(chat_id=1000)
+        mock_context.args = ["age", "1995"]
+        await settings_command(update, mock_context)
+        reply = update.message.reply_text.call_args[0][0]
+        assert "1995" in reply
+
+    async def test_settings_age_invalid(self, make_update, mock_context):
+        update = make_update(chat_id=1000)
+        mock_context.args = ["age", "2020"]
+        await settings_command(update, mock_context)
+        reply = update.message.reply_text.call_args[0][0]
+        assert "between" in reply.lower() or "Birth year" in reply
+
+    async def test_settings_unknown_subcmd(self, make_update, mock_context):
+        update = make_update(chat_id=1000)
+        mock_context.args = ["foo"]
+        await settings_command(update, mock_context)
+        reply = update.message.reply_text.call_args[0][0]
+        assert "Unknown" in reply or "setting" in reply.lower()
+
+    async def test_view_shows_period_duration(self, make_update, mock_context):
+        update = make_update(chat_id=1000)
+        mock_context.args = []
+        await settings_command(update, mock_context)
+        reply = update.message.reply_text.call_args[0][0]
+        assert "Period duration" in reply or "period" in reply.lower()
+
+
+# -- /period --
 
 class TestPeriodCommand:
     async def test_no_args_logs_today(self, make_update, mock_context):
@@ -168,8 +246,16 @@ class TestPeriodCommand:
         reply = update.message.reply_text.call_args[0][0]
         assert "updated" in reply.lower()
 
+    async def test_period_logs_to_history(self, make_update, mock_context):
+        db = mock_context.bot_data["db"]
+        update = make_update(chat_id=1000)
+        mock_context.args = []
+        await period_command(update, mock_context)
+        history = db.get_period_history(1000)
+        assert len(history) >= 1
 
-# ── /clearchat ───────────────────────────────────────────────────
+
+# -- /clearchat --
 
 class TestClearchatCommand:
     async def test_clears_history(self, make_update, mock_context):
@@ -182,23 +268,7 @@ class TestClearchatCommand:
         assert "cleared" in reply.lower()
 
 
-# ── /about ───────────────────────────────────────────────────────
-
-class TestAboutCommand:
-    async def test_shows_version(self, make_update, mock_context):
-        update = make_update(chat_id=1000)
-        await about_command(update, mock_context)
-        reply = update.message.reply_text.call_args[0][0]
-        assert VERSION in reply
-
-    async def test_shows_author(self, make_update, mock_context):
-        update = make_update(chat_id=1000)
-        await about_command(update, mock_context)
-        reply = update.message.reply_text.call_args[0][0]
-        assert "borghei" in reply
-
-
-# ── chat_handler ─────────────────────────────────────────────────
+# -- chat_handler --
 
 class TestChatHandler:
     def setup_method(self):

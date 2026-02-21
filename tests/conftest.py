@@ -25,10 +25,10 @@ def db_with_user(db):
             "INSERT INTO users (chat_id, is_admin, is_active) VALUES (?, 1, 1)",
             (1000,),
         )
-    db.upsert_user_config(1000, 28, "2026-02-01")
+    db.upsert_user_config(1000, 28, "2026-02-01", period_duration=5)
 
     db.add_user(2000, added_by=1000)
-    db.upsert_user_config(2000, 30, "2026-02-05")
+    db.upsert_user_config(2000, 30, "2026-02-05", period_duration=4)
     return db
 
 
