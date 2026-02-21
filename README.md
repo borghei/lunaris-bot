@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.png" alt="Lunaris" width="200">
+  <img src="Lunaris-header.png" alt="Lunaris" width="200">
 </p>
 
 <h1 align="center">Lunaris</h1>
