@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.3.0-pink?style=flat-square" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.1.0-pink?style=flat-square" alt="Version">
   <img src="https://img.shields.io/badge/python-3.12+-blue?style=flat-square&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/AI-Claude_Sonnet-blueviolet?style=flat-square&logo=anthropic&logoColor=white" alt="Claude AI">
   <img src="https://img.shields.io/badge/platform-Telegram-26A5E4?style=flat-square&logo=telegram&logoColor=white" alt="Telegram">

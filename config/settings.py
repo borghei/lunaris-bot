@@ -1,4 +1,4 @@
-VERSION = "2.3.0"
+VERSION = "1.1.0"
 
 import os
 from pathlib import Path
