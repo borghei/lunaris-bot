@@ -2,6 +2,7 @@ import time
 from datetime import date
 from unittest.mock import AsyncMock, patch
 
+from config.settings import VERSION
 from src.handlers import (
     setup_command,
     start_command,
@@ -12,6 +13,7 @@ from src.handlers import (
     period_command,
     clearchat_command,
     chat_handler,
+    about_command,
     _ai_call_timestamps,
     AI_RATE_LIMIT,
 )
@@ -178,6 +180,22 @@ class TestClearchatCommand:
         assert db.get_chat_history(1000) == []
         reply = update.message.reply_text.call_args[0][0]
         assert "cleared" in reply.lower()
+
+
+# ── /about ───────────────────────────────────────────────────────
+
+class TestAboutCommand:
+    async def test_shows_version(self, make_update, mock_context):
+        update = make_update(chat_id=1000)
+        await about_command(update, mock_context)
+        reply = update.message.reply_text.call_args[0][0]
+        assert VERSION in reply
+
+    async def test_shows_author(self, make_update, mock_context):
+        update = make_update(chat_id=1000)
+        await about_command(update, mock_context)
+        reply = update.message.reply_text.call_args[0][0]
+        assert "borghei" in reply
 
 
 # ── chat_handler ─────────────────────────────────────────────────

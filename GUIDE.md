@@ -212,6 +212,7 @@ Shows all whitelisted users with their status (active/inactive) and role.
 | `/adjust` | `/adjust 2026-02-10` | Correct your last period start date |
 | `/settings` | `/settings` or `/settings 30` | View settings or update cycle length |
 | `/clearchat` | `/clearchat` | Clear your AI conversation history |
+| `/about` | `/about` | Show bot version, description, and author |
 
 ### Admin Only
 
@@ -220,6 +221,8 @@ Shows all whitelisted users with their status (active/inactive) and role.
 | `/adduser` | `/adduser 123456789` | Whitelist a Telegram user |
 | `/removeuser` | `/removeuser 123456789` | Deactivate a user |
 | `/users` | `/users` | List all whitelisted users |
+
+> **Note:** Admin commands (`/adduser`, `/removeuser`, `/users`) are only visible in the Telegram command menu for the admin. Other users will not see them.
 
 ### Free-Form Chat
 
@@ -323,7 +326,7 @@ Run the full suite:
 pytest -v
 ```
 
-**125 tests** covering:
+**127 tests** covering:
 
 | File | Tests | What It Covers |
 |------|-------|----------------|

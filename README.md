@@ -42,7 +42,7 @@
 - SQLite with WAL mode, foreign keys, and indexed queries
 - Per-user AI rate limiting (5 calls / 60 seconds)
 - Input validation and markdown escaping
-- 125 tests covering all modules
+- 127 tests covering all modules
 - PM2-ready with rotating logs
 
 ---
@@ -92,9 +92,12 @@ See the **[Full Setup & Configuration Guide](GUIDE.md)** for detailed instructio
 | `/adjust <date>` | Correct your last period start date |
 | `/settings [length]` | View or update cycle length |
 | `/clearchat` | Clear AI conversation history |
+| `/about` | Bot version and info |
 | `/adduser <id>` | Whitelist a user (admin only) |
 | `/removeuser <id>` | Remove a user (admin only) |
 | `/users` | List all whitelisted users (admin only) |
+
+Admin commands are hidden from non-admin users in the Telegram command menu.
 
 Any non-command text message starts a free-form AI chat conversation.
 
@@ -162,7 +165,7 @@ pip install pytest pytest-asyncio
 pytest -v
 ```
 
-125 tests, all passing. No external services needed — database tests use real SQLite via temp files, AI tests use mocked clients.
+127 tests, all passing. No external services needed — database tests use real SQLite via temp files, AI tests use mocked clients.
 
 ---
 

@@ -1,3 +1,5 @@
+VERSION = "1.0.0"
+
 import os
 from pathlib import Path
 from zoneinfo import ZoneInfo

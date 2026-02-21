@@ -1,7 +1,7 @@
 import logging
 from datetime import date
 
-from telegram import BotCommand
+from telegram import BotCommand, BotCommandScopeChat
 from telegram.ext import (
     ApplicationBuilder,
     CallbackQueryHandler,
@@ -37,6 +37,7 @@ from src.handlers import (
     setup_command,
     clearchat_command,
     chat_handler,
+    about_command,
 )
 from src.scheduler import setup_scheduler
 
@@ -58,8 +59,12 @@ logger = logging.getLogger(__name__)
 
 
 async def post_init(application):
-    """Register bot commands menu on startup."""
-    await application.bot.set_my_commands([
+    """Register bot commands menu on startup.
+
+    Default menu shows regular commands only.
+    Admin gets an additional scoped menu with admin commands.
+    """
+    user_commands = [
         BotCommand("start", "Welcome & main menu"),
         BotCommand("status", "Current cycle day & phase"),
         BotCommand("tip", "AI-generated caring tip"),
@@ -72,10 +77,22 @@ async def post_init(application):
         BotCommand("settings", "View/update cycle length"),
         BotCommand("setup", "Set up your cycle info"),
         BotCommand("clearchat", "Clear AI chat history"),
-        BotCommand("adduser", "Whitelist a user (admin)"),
-        BotCommand("removeuser", "Remove a user (admin)"),
-        BotCommand("users", "List whitelisted users (admin)"),
-    ])
+        BotCommand("about", "About this bot"),
+    ]
+    admin_commands = user_commands + [
+        BotCommand("adduser", "Whitelist a user"),
+        BotCommand("removeuser", "Remove a user"),
+        BotCommand("users", "List whitelisted users"),
+    ]
+
+    # Default menu for all users — no admin commands visible
+    await application.bot.set_my_commands(user_commands)
+
+    # Admin-only menu — includes admin commands
+    await application.bot.set_my_commands(
+        admin_commands,
+        scope=BotCommandScopeChat(chat_id=ADMIN_CHAT_ID),
+    )
 
 
 def create_app() -> None:
@@ -110,6 +127,7 @@ def create_app() -> None:
         # New user commands
         ("setup", setup_command),
         ("clearchat", clearchat_command),
+        ("about", about_command),
     ]
     for name, handler in commands:
         app.add_handler(CommandHandler(name, handler))

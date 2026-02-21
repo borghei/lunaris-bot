@@ -7,7 +7,7 @@ from datetime import date, datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, constants
 from telegram.ext import ContextTypes
 
-from config.settings import MAX_CHAT_HISTORY
+from config.settings import MAX_CHAT_HISTORY, VERSION
 from src.ai import generate_tip, generate_chat_response
 from src.cycle import (
     get_cycle_day,
@@ -767,6 +767,21 @@ async def settings_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"To change period date:\n`/adjust 2026-02-25`"
     )
     await update.message.reply_text(text, parse_mode="Markdown", reply_markup=MAIN_KEYBOARD)
+
+
+# ── About command ──────────────────────────────────────────────────
+
+@whitelisted
+async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = (
+        f"🌙 *Lunaris* — v{VERSION}\n\n"
+        f"Your personal cycle companion bot.\n"
+        f"Tracks your menstrual cycle, predicts upcoming dates, "
+        f"and offers AI-powered tips tailored to your current phase.\n\n"
+        f"👩‍💻 Author: @borghei\n"
+        f"🛠 Built with: python-telegram-bot, Claude AI, SQLite"
+    )
+    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=BACK_KEYBOARD)
 
 
 # ── Free-form AI chat handler ──────────────────────────────────────
