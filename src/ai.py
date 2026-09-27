@@ -49,9 +49,8 @@ def _format_logs_context(recent_logs: list[dict] | None) -> str:
 
 
 def _extract_text(response) -> str:
-    if response.content:
-        return response.content[0].text
-    return "I'm having a moment, darling — try again in a sec!"
+    text = "".join(b.text for b in response.content if b.type == "text")
+    return text or "I'm having a moment, darling — try again in a sec!"
 
 
 async def generate_tip(phase: str, cycle_day: int, recent_logs: list[dict] | None = None, model: str = "claude-sonnet-4-6", age: int | None = None) -> str:
