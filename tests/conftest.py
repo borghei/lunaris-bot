@@ -38,6 +38,7 @@ def mock_anthropic_response():
     def _factory(text="Test response"):
         response = MagicMock()
         block = MagicMock()
+        block.type = "text"
         block.text = text
         response.content = [block]
         return response

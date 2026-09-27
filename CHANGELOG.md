@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1 — 2026-09-27
+
+### Fixed
+- Replies are read from the response's text blocks instead of `content[0]`, which is a thinking block on current models
+- The cycle-length test no longer depends on the date it was written
+
 ## 1.1.0 — 2026-02-21
 
 ### Added
