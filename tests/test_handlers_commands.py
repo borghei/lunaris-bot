@@ -1,5 +1,5 @@
 import time
-from datetime import date
+from datetime import date, timedelta
 from unittest.mock import AsyncMock, patch
 
 from src.handlers import (
@@ -239,7 +239,7 @@ class TestPeriodCommand:
     async def test_cycle_length_learning(self, make_update, mock_context):
         db = mock_context.bot_data["db"]
         # Set last period to 25 days ago (within valid 18-45 range)
-        db.update_user_last_period_date(1000, date(2026, 1, 27).isoformat())
+        db.update_user_last_period_date(1000, (date.today() - timedelta(days=25)).isoformat())  # noqa: DTZ011 — matches the local date period_command uses
         update = make_update(chat_id=1000)
         mock_context.args = [date.today().isoformat()]
         await period_command(update, mock_context)
